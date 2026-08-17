@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.DS_Store
+htmlcov/
+.coverage
+.pytest_cache/
+venv/
+.idea/
+*.iml
+.vscode/
+poetry.lock

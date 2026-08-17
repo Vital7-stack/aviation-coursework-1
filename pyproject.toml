@@ -1,0 +1,28 @@
+[project]
+name = "aviation-coursework-1"
+version = "0.1.0"
+description = "Курсовая работа по авиации"
+authors = [
+{name = "VITAL", email = "zinabir7@gmail.com"}
+]
+[tool.poetry.dependencies]
+python = "^3.14"
+requests = "^2.34.2"
+psycopg2-binary = "^2.9.10"
+# pytest = "^8.0.0"          # раскомментируй, если нужны тесты
+# pytest-cov = "^5.0.0"      # раскомментируй, если нужно покрытие
+python-dotenv = "^1.2.3"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [
+{from = "src", include = "aviation"}
+]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^5.0.0"
