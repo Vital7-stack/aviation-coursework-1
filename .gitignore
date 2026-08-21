@@ -10,3 +10,4 @@ venv/
 *.iml
 .vscode/
 poetry.lock
+.env.test

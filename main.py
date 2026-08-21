@@ -1,79 +1,78 @@
+import time
 from aviation.api_client import APIClient
 from aviation.db_manager import DBManager
+from aviation.models import Country
 
-# Минимум 10 стран — требование критерия оценки
 COUNTRIES_LIST = [
     "Russia", "Germany", "France", "Italy", "Spain",
-    "United Kingdom", "Poland", "Sweden", "Norway", "Finland"
+    "United Kingdom", "Poland", "Turkey", "India", "Brazil"
 ]
+BOX_SIZE = 10.0
 
+def get_bounding_box(lat: float, lon: float, size_deg: float) -> tuple:
+    half = size_deg / 2.0
+    return (lat - half, lat + half, lon - half, lon + half)
 
 def main():
-    client = APIClient()
     db = DBManager()
+    client = APIClient()
 
-    # 1. Получаем координаты стран и сохраняем
-    countries_data = []
-    for name in COUNTRIES_LIST:
-        coords = client.get_country_coordinates(name)
-        if coords:
-            countries_data.append({"name": name, **coords})
+    db.ensure_tables_exist()
+    print("✅ Таблицы проверены/созданы.")
+
+    countries_objs = []
+    for country_name in COUNTRIES_LIST:
+        country_obj = client.get_country_coordinates(country_name)
+        if country_obj:
+            countries_objs.append(country_obj)
         else:
-            print(f"⚠️ Не удалось получить координаты для страны: {name}")
+            print(f"⚠️ Не удалось найти координаты для: {country_name}")
 
-    if len(countries_data) < 10:
-        print(f"❌ Ошибка: удалось получить координаты только для {len(countries_data)} стран. Нужно минимум 10.")
+    if countries_objs:
+        db.insert_countries(countries_objs)
+        print(f"✅ Вставлено стран: {len(countries_objs)}")
+    else:
+        print("❌ Не удалось получить ни одной страны. Завершаю.")
         db.close()
         return
 
-    db.insert_countries(countries_data)
-    print(f"✅ Вставлено стран: {len(countries_data)}")
+    all_airplanes_objs = []
+    for country in countries_objs:
+        if not country.latitude or not country.longitude:
+            continue
 
-    # 2. Вычисляем общий bounding box по всем странам
-    lats = [c["latitude"] for c in countries_data]
-    lons = [c["longitude"] for c in countries_data]
-    min_lat, max_lat = min(lats), max(lats)
-    min_lon, max_lon = min(lons), max(lons)
+        min_lat, max_lat, min_lon, max_lon = get_bounding_box(
+            country.latitude, country.longitude, BOX_SIZE
+        )
+        time.sleep(1)
 
-    print(f"🌍 Область поиска: lat [{min_lat:.2f}, {max_lat:.2f}], lon [{min_lon:.2f}, {max_lon:.2f}]")
+        planes_objs = client.get_airplanes_in_area(min_lat, max_lat, min_lon, max_lon)
+        all_airplanes_objs.extend(planes_objs)
 
-    # 3. Получаем самолёты «прямо сейчас» в этой области
-    planes = client.get_airplanes_in_area(min_lat, max_lat, min_lon, max_lon)
-
-    if not planes:
-        print("⚠️ Самолёты не получены (возможно, сейчас в этой зоне нет активных рейсов).")
+    if all_airplanes_objs:
+        db.insert_airplanes(all_airplanes_objs)
+        print(f"✅ Обработано самолётов: {len(all_airplanes_objs)}")
     else:
-        db.insert_airplanes(planes)
-        print(f"✅ Загружено самолётов: {len(planes)}")
+        print("⚠️ Самолёты не получены.")
 
-    # 4. Демонстрация аналитики — подтверждение критериев
-    print("\n--- Отчёты (для проверки критериев) ---")
-
-    countries_counts = db.get_countries_and_aeroplanes_count()
-    print("Страны и количество самолётов (JOIN):")
-    for name, count in countries_counts:
-        print(f"  {name}: {count}")
+    print("\n--- Отчёты ---")
+    counts = db.get_countries_and_aeroplanes_count()
+    print("Количество самолётов по странам:")
+    for name, count in counts:
+        print(f"{name}: {count}")
 
     avg_speed = db.get_avg_speed()
     if avg_speed is not None:
-        print(f"Средняя скорость (AVG): {avg_speed:.2f} м/с")
-    else:
-        print("Средняя скорость: нет данных")
+        print(f"Средняя скорость: {avg_speed:.2f} м/с")
 
-    faster = db.get_aeroplanes_with_higher_speed()
-    print(f"Самолётов быстрее средней: {len(faster)}")
+    faster_planes = db.get_aeroplanes_with_higher_speed()
+    print(f"Самолётов со скоростью выше средней: {len(faster_planes)}")
 
-    keyword_results = db.get_aeroplanes_with_keyword("ACA")
-    print(f"Самолёты с позывным, содержащим 'ACA': {len(keyword_results)}")
-    if keyword_results:
-        print("Примеры (первые 5):")
-        for p in keyword_results[:5]:
-            print(f"  ICAO24: {p['icao24']}, callsign: {p['callsign']}")
+    keyword_planes = db.get_aeroplanes_with_keyword("ACA")
+    print(f"Самолёты с подстрокой 'ACA' в callsign: {len(keyword_planes)}")
 
     db.close()
     print("\n✅ Готово.")
 
-
 if __name__ == "__main__":
     main()
-
