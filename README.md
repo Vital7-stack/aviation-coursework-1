@@ -53,5 +53,5 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=aviation_db
 DB_USER=postgres
-DB_PASSWORD=556677
+DB_PASSWORD=your_password
 ⚠️ Важно: Файл .env намеренно не закоммичен в Git: он добавлен в .gitignore. Пароль хранится только локально на машине разработчика и не попадает в репозиторий.
